@@ -1,0 +1,23 @@
+# Extra RBAC the etcd-ops Deployment needs for backup/restore integration. The Deployment in
+# routine-tasks/etcd/kubedb-etcd-dev/assets/etcd-ops-deploy.yaml reuses the ops-manager
+# ServiceAccount, which has NO permissions on KubeStash resources, so the Restore op stalls at
+# "restoresessions.core.kubestash.com is forbidden". A proper etcd-ops chart should ship its own SA + this.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: {name: etcd-ops-kubestash}
+rules:
+- apiGroups: ["core.kubestash.com"]
+  resources: [restoresessions, restoresessions/status, backupsessions, backupconfigurations, backupblueprints]
+  verbs: [get, list, watch, create, update, patch, delete]
+- apiGroups: ["storage.kubestash.com"]
+  resources: [repositories, snapshots, backupstorages, retentionpolicies]
+  verbs: [get, list, watch]
+- apiGroups: ["addons.kubestash.com"]
+  resources: [addons, functions]
+  verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: etcd-ops-kubestash}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: etcd-ops-kubestash}
+subjects: [{kind: ServiceAccount, name: kubedb-kubedb-ops-manager, namespace: kubedb}]

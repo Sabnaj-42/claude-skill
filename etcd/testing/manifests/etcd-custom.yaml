@@ -1,0 +1,28 @@
+# Exercises pass-through customization: extra etcd flags (last flag wins), custom env,
+# a user sidecar (any container NOT named "etcd" is passed through untouched), pod
+# metadata, and a Service template override for the client Service (alias: primary).
+apiVersion: kubedb.com/v1alpha2
+kind: Etcd
+metadata: {name: t-custom, namespace: demo}
+spec:
+  version: "3.6.4"
+  replicas: 3
+  storageType: Durable
+  storage: {storageClassName: local-path, accessModes: [ReadWriteOnce], resources: {requests: {storage: 1Gi}}}
+  deletionPolicy: WipeOut
+  podTemplate:
+    metadata:
+      labels: {team: data-platform}
+      annotations: {example.com/owner: dba}
+    spec:
+      containers:
+      - name: etcd
+        args: ["--election-timeout=2000", "--heartbeat-interval=200", "--max-request-bytes=4194304"]
+        env: [{name: MY_CUSTOM_ENV, value: hello-etcd}]
+      - name: sidecar
+        image: busybox:1.36
+        command: ["sleep", "infinity"]
+  serviceTemplates:
+  - alias: primary
+    metadata: {annotations: {example.com/svc: client}}
+    spec: {type: NodePort}

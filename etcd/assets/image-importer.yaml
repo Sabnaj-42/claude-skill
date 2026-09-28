@@ -1,0 +1,22 @@
+# Privileged side-loading pod: streams docker-save tars into the k3s node's containerd.
+# Usage: see workflows.md §3. Delete when done.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: image-importer
+  namespace: kube-system
+spec:
+  hostPID: true
+  containers:
+  - name: importer
+    image: busybox:1.36
+    command: ["sleep", "infinity"]
+    securityContext:
+      privileged: true
+    volumeMounts:
+    - name: host
+      mountPath: /host
+  volumes:
+  - name: host
+    hostPath:
+      path: /

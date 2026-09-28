@@ -1,0 +1,11 @@
+# A second StorageClass backed by the SAME local-path provisioner. Gives StorageMigration a
+# distinct target class on a single-class test cluster. allowVolumeExpansion is set only so the
+# VolumeExpansion op can be *attempted* against it (local-path cannot actually resize volumes).
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-path-2
+provisioner: rancher.io/local-path
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+allowVolumeExpansion: true

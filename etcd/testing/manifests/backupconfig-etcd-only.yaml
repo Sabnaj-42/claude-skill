@@ -1,0 +1,25 @@
+# Hand-made BackupConfiguration running ONLY the etcd-backup task (no shared manifest-backup task,
+# which currently rejects Etcd - see the test plan, BUG 15). Use this until the manifest plugin
+# supports Etcd. Target = the Etcd object; the addon reads the AppBinding of the same name.
+apiVersion: core.kubestash.com/v1alpha1
+kind: BackupConfiguration
+metadata: {name: t-general-etcdonly, namespace: demo}
+spec:
+  target: {apiGroup: kubedb.com, kind: Etcd, name: t-general, namespace: demo}
+  backends:
+  - name: s3
+    storageRef: {name: s3-storage, namespace: demo}
+    retentionPolicy: {name: demo-retention, namespace: demo}
+  sessions:
+  - name: full-backup
+    scheduler:
+      schedule: "0 0 1 1 *"          # effectively manual; trigger a BackupSession by hand
+      jobTemplate: {backoffLimit: 1}
+    repositories:
+    - name: t-general-etcdonly-full
+      backend: s3
+      directory: /etcd-manual/t-general/full
+      encryptionSecret: {name: encrypt-secret, namespace: demo}
+    addon:
+      name: etcd-addon
+      tasks: [{name: etcd-backup}]

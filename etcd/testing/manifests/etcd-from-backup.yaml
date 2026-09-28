@@ -1,0 +1,20 @@
+# Bootstrap a NEW Etcd from a KubeStash backup (spec.init.archiver). Only fullDBRepository is
+# needed: the manifestRepository phase is optional and currently unusable (the KubeDB manifest
+# plugin rejects Etcd). If the backed-up cluster had etcd RBAC enabled, the snapshot carries
+# ITS root password, so the new Etcd must use the same credentials: reference the original
+# auth secret (externallyManaged) - a freshly generated password could never authenticate.
+apiVersion: kubedb.com/v1alpha2
+kind: Etcd
+metadata: {name: t-boot, namespace: demo}
+spec:
+  version: "3.6.4"
+  replicas: 3
+  storageType: Durable
+  storage: {storageClassName: local-path, accessModes: [ReadWriteOnce], resources: {requests: {storage: 1Gi}}}
+  authSecret: {name: t-user-auth, kind: Secret, externallyManaged: true}
+  init:
+    archiver:
+      recoveryTimestamp: "0001-01-01T00:00:00Z"     # zero = newest full snapshot
+      encryptionSecret: {name: encrypt-secret, namespace: demo}
+      fullDBRepository: {name: t-general-etcdonly-full, namespace: demo}
+  deletionPolicy: WipeOut

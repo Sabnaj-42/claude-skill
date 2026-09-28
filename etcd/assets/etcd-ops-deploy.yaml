@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubedb-etcd-ops
+  namespace: kubedb
+  labels:
+    app.kubernetes.io/name: kubedb-etcd-ops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubedb-etcd-ops
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kubedb-etcd-ops
+    spec:
+      serviceAccountName: kubedb-kubedb-ops-manager
+      containers:
+      - name: etcd-ops
+        image: ghcr.io/kubedb/etcd-ops:fix-psclient-provisioner-host_linux_amd64
+        imagePullPolicy: IfNotPresent
+        args:
+        - operator
+        - --license-file=/var/run/secrets/appscode/license/key.txt
+        - --v=3
+        volumeMounts:
+        - name: license
+          mountPath: /var/run/secrets/appscode/license
+          readOnly: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+      volumes:
+      - name: license
+        secret:
+          secretName: kubedb-kubedb-ops-manager-license

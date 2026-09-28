@@ -1,0 +1,54 @@
+# Single-pod S3-compatible object store (Scality cloudserver, file backend on emptyDir) used as the
+# KubeStash BackupStorage target. Test-only: data dies with the pod. MinIO's community images are
+# no longer pullable (quay.io/minio and docker.io/minio return 401/pull-denied), hence this choice.
+# Credentials: accessKey / verySecretKey1 ; endpoint http://s3.s3.svc:8000 ; bucket etcd-backups
+apiVersion: v1
+kind: Namespace
+metadata: {name: s3}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: s3, namespace: s3}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: s3}}
+  template:
+    metadata: {labels: {app: s3}}
+    spec:
+      containers:
+      - name: cloudserver
+        image: zenko/cloudserver:latest
+        env:
+        - {name: SCALITY_ACCESS_KEY_ID, value: accessKey}
+        - {name: SCALITY_SECRET_ACCESS_KEY, value: verySecretKey1}
+        - {name: S3DATA, value: file}
+        - {name: S3METADATA, value: file}
+        - {name: REMOTE_MANAGEMENT_DISABLE, value: "1"}
+        - {name: ENDPOINT, value: s3.s3.svc}   # host clients use; cloudserver rejects unknown hosts (InvalidURI)
+        ports: [{containerPort: 8000}]
+        readinessProbe: {tcpSocket: {port: 8000}, periodSeconds: 3}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: s3, namespace: s3}
+spec:
+  selector: {app: s3}
+  ports: [{port: 8000, targetPort: 8000}]
+---
+apiVersion: batch/v1
+kind: Job
+metadata: {name: make-bucket, namespace: s3}
+spec:
+  backoffLimit: 20
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: aws
+        image: amazon/aws-cli:latest
+        env:
+        - {name: AWS_ACCESS_KEY_ID, value: accessKey}
+        - {name: AWS_SECRET_ACCESS_KEY, value: verySecretKey1}
+        - {name: AWS_DEFAULT_REGION, value: us-east-1}
+        command: ["/bin/sh", "-c"]
+        args: ["aws configure set default.s3.addressing_style path && aws --endpoint-url http://s3.s3.svc:8000 s3 mb s3://etcd-backups && echo BUCKET-READY"]
